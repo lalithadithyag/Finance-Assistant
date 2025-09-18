@@ -59,6 +59,10 @@ An intelligent financial document analysis assistant powered by Streamlit and Ol
    - Use the quick questions for instant insights
    - Or type custom questions about your financial documents
    - Adjust system parameters (temperature, max tokens) as needed
+     
+4. **Stop the application:**
+   - Press Ctrl+C in the terminal where the app is running
+   - Or close the terminal window
 
 ## 📊 Supported Financial Documents
 
@@ -68,16 +72,6 @@ An intelligent financial document analysis assistant powered by Streamlit and Ol
 - **Financial Reports**: Multi-sheet Excel workbooks with financial data
 
 ## 🔧 Configuration
-
-### Environment Variables
-
-You can customize the application using environment variables:
-
-```bash
-# Ollama API configuration
-export OLLAMA_API_URL="http://localhost:11434/api/generate"
-export OLLAMA_MODEL="llama3.2"
-```
 
 ### System Parameters
 
