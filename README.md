@@ -73,6 +73,15 @@ An intelligent financial document analysis assistant powered by Streamlit and Ol
 
 ## 🔧 Configuration
 
+### Environment Variables
+
+- You can customize the application using environment variables:
+  ```bash
+  # Ollama API configuration
+  export OLLAMA_URLOLLAMA_API_URL="http://localhost:11434/api/generate"
+  export OLLAMA_MODEL="llama3.2"
+  ```
+  
 ### System Parameters
 
 - **Temperature**: Controls response creativity (0.0 - 1.0)
