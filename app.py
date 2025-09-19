@@ -1,4 +1,4 @@
-#all functionalities but comples and takes time to process documents
+
 import os
 import io
 import re
@@ -14,15 +14,14 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# ----------------------------
+
 # Configuration
-# ----------------------------
 APP_TITLE = "QueryFi Assistant - Finance Expert"
 MAX_UPLOAD_MB = 20
 OLLAMA_API_URL = os.environ.get("OLLAMA_API_URL", "http://localhost:11434/api/generate")
 DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
-# Simple safety keywords
+# Safety keywords for model to avoid
 UNSAFE_KEYWORDS = ['bomb', 'weapon', 'kill', 'suicide', 'harm', 'hate', 'racist', 'porn', 'nude', 'sexual', 'bully', 'threat']
 
 st.set_page_config(page_title=APP_TITLE, layout="wide", page_icon="💰")
@@ -43,9 +42,8 @@ if "temperature" not in st.session_state:
 if "max_tokens" not in st.session_state:
     st.session_state.max_tokens = 1000
 
-# ----------------------------
+
 # Safety Functions
-# ----------------------------
 def is_content_safe(text: str) -> bool:
     """Simple safety check"""
     if not text:
@@ -56,9 +54,8 @@ def is_content_safe(text: str) -> bool:
 def get_safety_message() -> str:
     return "Please keep our conversation professional and focused on financial topics. I'm here to help with your financial analysis needs."
 
-# ----------------------------
-# Enhanced Excel Processing for Financial Statements - FIXED VERSION
-# ----------------------------
+
+# Excel Processing
 def clean_financial_value(value) -> Optional[str]:
     """Clean and standardize financial values"""
     if pd.isna(value) or value == "" or value is None:
@@ -74,7 +71,7 @@ def clean_financial_value(value) -> Optional[str]:
     return str_val
 
 def format_financial_value(value):
-    """More robust financial value formatting that handles ranges and complex notations"""
+    """To handle complex notations"""
     if not value or pd.isna(value):
         return "--"
     
@@ -84,7 +81,7 @@ def format_financial_value(value):
     if str_val in ['-', '—', 'N/A', 'n/a', 'NA', '']:
         return "--"
     
-    # Handle ranges (e.g., "150 million to 127.5 million") - keep as-is
+    # Handle ranges
     if any(connector in str_val.lower() for connector in [' to ', ' - ', ' through ', ' vs ']):
         return str_val
     
@@ -92,8 +89,7 @@ def format_financial_value(value):
     if '%' in str_val:
         return str_val
     
-    # Try to extract and format single numbers
-    # Look for number patterns with optional units
+    # To extract and format number pattern
     number_pattern = r'([\d,.-]+)\s*(million|billion|thousand|M|B|K|m|b|k)?'
     match = re.search(number_pattern, str_val, re.IGNORECASE)
     
@@ -131,7 +127,7 @@ def format_financial_value(value):
         except (ValueError, AttributeError):
             pass
     
-    # If all parsing fails, return the original value
+    # Failure- returning the original value
     return str_val
 
 def detect_financial_statement_type(df: pd.DataFrame, sheet_name: str) -> str:
@@ -170,7 +166,7 @@ def detect_financial_statement_type(df: pd.DataFrame, sheet_name: str) -> str:
     return "Financial Statement"
 
 def process_financial_dataframe(df: pd.DataFrame, sheet_name: str) -> str:
-    """Process a financial statement DataFrame into readable text - FIXED VERSION"""
+    """Process a financial statement into readable text"""
     try:
         if df.empty:
             return f"Sheet '{sheet_name}' is empty.\n"
@@ -178,7 +174,6 @@ def process_financial_dataframe(df: pd.DataFrame, sheet_name: str) -> str:
         # Detect statement type
         statement_type = detect_financial_statement_type(df, sheet_name)
         
-        # Clean the dataframe
         df_clean = df.copy()
         
         # Remove completely empty rows and columns
@@ -189,8 +184,7 @@ def process_financial_dataframe(df: pd.DataFrame, sheet_name: str) -> str:
         
         text_parts = [f"\n=== {statement_type}: {sheet_name} ===\n"]
         
-        # Try to identify the structure
-        # Look for a column that might contain line items (usually first column)
+        # Line item column identification (usually first column)
         line_items_col = None
         for col in df_clean.columns:
             if df_clean[col].dtype == 'object':  # Text column
@@ -202,8 +196,8 @@ def process_financial_dataframe(df: pd.DataFrame, sheet_name: str) -> str:
         if line_items_col is None and df_clean.shape[1] > 0:
             line_items_col = df_clean.columns[0]
         
-        # Process the data
-        # Get column headers (periods/years)
+
+        # Get column headers 
         value_columns = [col for col in df_clean.columns if col != line_items_col]
         
         if value_columns:
@@ -243,11 +237,11 @@ def process_financial_dataframe(df: pd.DataFrame, sheet_name: str) -> str:
             return f"\n=== {sheet_name} ===\nERROR: Could not process this sheet: {str(e)}\n"
 
 def extract_text_from_excel_bytes(file_bytes: bytes, filename: str = "") -> str:
-    """Enhanced Excel text extraction for financial statements - FIXED VERSION"""
+    """Excel text extraction"""
     try:
         # Add timeout and error handling for Excel processing
         with st.spinner(f"Processing Excel file: {filename}"):
-            # Try to read all sheets with error handling
+            # Try to read sheet data with error handling
             try:
                 excel_data = pd.read_excel(io.BytesIO(file_bytes), sheet_name=None, header=None)
             except Exception as e:
@@ -273,7 +267,6 @@ def extract_text_from_excel_bytes(file_bytes: bytes, filename: str = "") -> str:
                     continue
                 
                 try:
-                    # Try different header row positions (0, 1, 2) with timeout protection
                     best_df = None
                     best_score = 0
                     
@@ -287,11 +280,9 @@ def extract_text_from_excel_bytes(file_bytes: bytes, filename: str = "") -> str:
                             # Score this configuration
                             score = 0
                             if not df_test.empty:
-                                # Prefer configurations with more numeric columns
                                 numeric_cols = sum(1 for col in df_test.columns if df_test[col].dtype in ['int64', 'float64'])
                                 score += numeric_cols * 2
                                 
-                                # Prefer configurations with meaningful column names
                                 meaningful_cols = sum(1 for col in df_test.columns if isinstance(col, str) and len(str(col).strip()) > 2)
                                 score += meaningful_cols
                                 
@@ -314,7 +305,7 @@ def extract_text_from_excel_bytes(file_bytes: bytes, filename: str = "") -> str:
                     sheet_text = process_financial_dataframe(df_to_process, sheet_name)
                     all_text_parts.append(sheet_text)
                     
-                    # Extract key metrics for summary
+                    # Extract basic metrics for summary
                     statement_type = detect_financial_statement_type(df_to_process, sheet_name)
                     financial_summary.append(f"- {statement_type} ({sheet_name}): {df_to_process.shape[0]} rows, {df_to_process.shape[1]} columns")
                     
@@ -334,9 +325,7 @@ def extract_text_from_excel_bytes(file_bytes: bytes, filename: str = "") -> str:
         st.error(error_msg)
         return f"\n=== {filename} ===\nERROR: Could not process this Excel file: {str(e)}\n"
 
-# ----------------------------
-# Core Functions - FIXED VERSION
-# ----------------------------
+# Core Functions
 def sanitize_question(q: str, max_len: int = 2000) -> str:
     if not q:
         return ""
@@ -344,7 +333,7 @@ def sanitize_question(q: str, max_len: int = 2000) -> str:
     return q[:max_len] + ("..." if len(q) > max_len else "")
 
 def extract_text_from_pdf_bytes(file_bytes: bytes, filename: str = "") -> str:
-    """Enhanced PDF text extraction with timeout protection"""
+    """Enhanced PDF text extraction with pagelimit protection"""
     try:
         with st.spinner(f"Processing PDF file: {filename}"):
             with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
@@ -360,7 +349,7 @@ def extract_text_from_pdf_bytes(file_bytes: bytes, filename: str = "") -> str:
                         
                     try:
                         page_text = page.extract_text() or ""
-                        # Try to extract tables as well
+                        # To extract table data
                         tables = page.extract_tables()
                         for table in tables:
                             if table:
@@ -410,7 +399,7 @@ def build_tfidf_index(chunks: List[str]) -> Tuple[TfidfVectorizer, Any]:
         return None, None
 
 def retrieve_top_k(query: str, vectorizer: TfidfVectorizer, X, chunks: List[str], k: int = 5):
-    """FIXED: Properly handle sparse matrix check"""
+    """To handle sparse matrix check"""
     # Check if any component is None or invalid
     if vectorizer is None or X is None or not chunks:
         return []
@@ -425,13 +414,13 @@ def retrieve_top_k(query: str, vectorizer: TfidfVectorizer, X, chunks: List[str]
         return []
 
 def extract_financial_metrics(text: str) -> Dict[str, str]:
-    """Enhanced financial metrics extraction"""
+    """Financial metrics extraction"""
     if not text:
         return {}
         
     metrics = {}
     
-    # More comprehensive patterns for financial statements
+    # Defined patterns to extractfinancial statements' data
     patterns = {
         'Total Revenue': [
             r'(?:total\s+)?(?:net\s+)?revenue[s]?\s*[:\-]?\s*\$?([0-9,]+(?:\.[0-9]+)?)\s*(?:million|billion|thousand|M|B|K)?',
@@ -517,9 +506,8 @@ def show_quick_questions():
                 return question
     return None
 
-# ----------------------------
-# Main Application - FIXED VERSION
-# ----------------------------
+# Main Application
+
 def main():
     # Sidebar for document upload and settings
     with st.sidebar:
@@ -549,7 +537,7 @@ def main():
         st.session_state.max_tokens = st.slider(
             "Max Tokens",
             min_value=100,
-            max_value=4000,
+            max_value=1000,
             value=st.session_state.max_tokens,
             step=100,
             help="Maximum length of the response. Higher values allow for more detailed answers."
@@ -564,7 +552,7 @@ def main():
             st.session_state.financial_data = {}
             st.rerun()
     
-    # Process documents - FIXED VERSION
+    # Process documents
     if uploaded_files and not st.session_state.document_processed:
         # Show progress for large files
         progress_bar = st.progress(0)
@@ -626,8 +614,7 @@ def main():
                     st.warning(f"Could not extract financial metrics: {str(e)}")
             else:
                 st.error("❌ No text could be extracted from any of the uploaded files.")
-                
-            # Clear progress indicators
+        
             progress_bar.empty()
             status_text.empty()
             
@@ -638,13 +625,13 @@ def main():
             return
 
     if not st.session_state.document_processed:
-        st.info("👆 Please upload PDF or Excel files containing financial statements to begin.")
+        st.info(" Please upload PDF or Excel files containing financial statements to begin.")
         st.info("💡 **Supported Files:** Income Statements, Balance Sheets, Cash Flow Statements")
         return
 
-    # Document preview (collapsible)
+    # Document preview
     with st.expander("📑 Document Preview", expanded=False):
-        preview_text = st.session_state.document_text[:5000]  # Increased preview
+        preview_text = st.session_state.document_text[:5000]  
         if len(st.session_state.document_text) > 5000:
             preview_text += "\n\n... (document continues)"
         st.text_area("Document Content", preview_text, height=300, disabled=True)
@@ -706,7 +693,7 @@ def main():
                 top_chunks = retrieve_top_k(question, vectorizer, X, chunks, k=5)
                 context = "\n\n".join(top_chunks)
         
-        # Enhanced prompt for financial analysis
+        # Prompt for financial analysis
         history_context = ""
         if st.session_state.chat_history:
             recent_history = st.session_state.chat_history[-2:]  # Last 2 exchanges
